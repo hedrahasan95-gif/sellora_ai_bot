@@ -1,36 +1,33 @@
 import os
 import telebot
-from google import genai
+import requests
 
-# جلب مفاتيح الاتصال من بيئة التشغيل (لحماية خصوصيتك)
+# جلب توكن البوت من بيئة التشغيل
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-
-# تشغيل البوت والذكاء الاصطناعي
 bot = telebot.TeleBot(BOT_TOKEN)
-ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
 # الرد على أمر /start
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, "أهلاً بك! أنا بوت مدعوم بالذكاء الاصطناعي. اسألني عن أي شيء وسأجيبك فوراً! 🤖")
+    bot.reply_to(message, "أهلاً بك! أنا بوت مدعوم بالذكاء الاصطناعي المفتوح. اسألني عن أي شيء وسأجيبك فوراً! 🤖")
 
-# استقبال رسائل المستخدم وتمريرها للذكاء الاصطناعي
+# استقبال رسائل المستخدم وتمريرها للذكاء الاصطناعي (بدون حظر وبدون مفتاح)
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     try:
-        # إرسال إشارة للمستخدم أن البوت "يكتب الآن..."
+        # إشارة بأن البوت يكتب...
         bot.send_chat_action(message.chat.id, 'typing')
         
-        # إرسال النص إلى نموذج الجيمني
-        response = ai_client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=message.text,
-        )
+        # الاتصال بالذكاء الاصطناعي عبر خادم مفتوح
+        api_url = f"https://ddns.net{requests.utils.quote(message.text)}"
+        response = requests.get(api_url, timeout=15)
         
-        # إرسال رد الذكاء الاصطناعي للمستخدم
-        bot.reply_to(message, response.text)
-        
+        if response.status_code == 200:
+            ai_response = response.json().get('response', 'لم أستطع فهم ذلك.')
+            bot.reply_to(message, ai_response)
+        else:
+            bot.reply_to(message, "عذراً، الخادم مشغول حالياً. حاول مجدداً بعد قليل.")
+            
     except Exception as e:
         bot.reply_to(message, "عذراً، حدث خطأ أثناء معالجة طلبك. حاول مجدداً لاحقاً.")
         print(f"Error: {e}")
